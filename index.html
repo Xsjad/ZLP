@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zuglaufplan</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .table-container {
+            margin-top: 80px;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+        .table-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 999;
+        }
+        .fl-table {
+            border: 2px solid black;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .fl-table th, .fl-table td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        thead th {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 999;
+        }
+        select {
+            width: 100%;
+        }
+    </style>
+</head>
+<body onload="loadTableData()">
+    <div class="fixed-header">
+        <h2>Zuglaufplan</h2>
+        <input type="text" id="searchInput" class="search-input" placeholder="Suchen..." onkeyup="searchTable()">
+        <button onclick="insertRow()" class="add-new-row-btn">Neue Zeile</button>
+    </div>
+    <div class="tab-container"></div>
+    <div id="tab1" class="tab-content">
+        <div class="table-container">
+            <div class="table-header">
+                <table class="fl-table">
+                    <thead>
+                        <tr>
+                            <th>Bezeichnung</th>
+                            <th>Land</th>
+                            <th>ZGG</th>
+                            <th>ZgNr.</th>
+                            <th>Wg</th>
+                            <th>WZL</th>
+                            <th>WZG</th>
+                            <th>RID</th>
+                            <th>GGK</th>
+                            <th>NHM</th>
+                            <th>ETD Dat.</th>
+                            <th>ETD</th>
+                            <th>ATD Dat.</th>
+                            <th>ATD</th>
+                            <th>ETA. Dat.</th>
+                            <th>ETA</th>
+                            <th>ATA Dat.</th>
+                            <th>ATA</th>
+                            <th>von</th>
+                            <th>über</th>
+                            <th>nach</th>
+                            <th>1. Tfz</th>
+                            <th>2. Tfz</th>
+                            <th>ZUG-Tfz</th>
+                            <th>Nachschiebe Tfz</th>
+                            <th>Kalt geschlepptes</th>
+                            <th>TfzF[1]</th>
+                            <th>TfzF[2]</th>
+                            <th>Info zum Zug</th>
+                            <th>Schichtinfo</th>
+                            <th>WALI/Infra.TIS</th>
+                            <th>ZLM</th>
+                            <th>Trassen-status</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        function insertRow() {
+            var table = document.getElementById("tableBody");
+            var newRow = table.insertRow();
+            const columnCount = 34;
+            
+            for (let i = 0; i < columnCount - 1; i++) {
+                let cell = newRow.insertCell(i);
+                cell.contentEditable = "true";
+                
+                if ([4, 5, 6, 10, 11, 14, 15].includes(i)) {
+                    cell.style.backgroundColor = "#FFF2CC";
+                }
+                if ([12, 13, 16, 17].includes(i)) {
+                    cell.style.backgroundColor = "#E2EFDA";
+                }
+                
+                cell.addEventListener("input", function(event) {
+                    let value = event.target.textContent.trim();
+                    if (i === 1) {
+                        event.target.style.backgroundColor = value === "AT" ? "#00B0F0" : value === "DE" ? "#A9D08E" : "";
+                    }
+                    if (i === 3 && !isNaN(value) && value !== "") {
+                        event.target.style.backgroundColor = "#FFEFF6";
+                    }
+                    if (i === 7 && value.toUpperCase() === "JA") {
+                        event.target.style.backgroundColor = "#FF0000";
+                    }
+                    if (i === 9 && !isNaN(value) && value !== "") {
+                        event.target.style.backgroundColor = "#B7E1CD";
+                    }
+                    if (i === 29) {
+                        event.target.style.backgroundColor = value === "Offen" ? "#FF0000" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "Gesendet" ? "#00B050" :
+                                                             value === "CZ Plan" ? "#FFFFFF" : "" ;
+                    }
+                    if (i === 30) {
+                        event.target.style.backgroundColor = value === "Nein / Offen" ? "#FF0000" :
+                                                             value === "LZ" ? "#9FC5E8" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "CZ Vorm." ? "#FFFFFF" :
+                                                             value === "DE" ? "#9FC5E8" :
+                                                             value === "Änderung gesendet an CT (durch Dispo Wien)" ? "#FFFF00" :
+                                                             value === "Gesendet an CT (durch Dispo Wien)" ? "#FFFF00" :
+                                                             value === "Geprüft, OK durch Dispo Wien " ? "#92D050" :
+                                                             value === "Daten per Mail an ÖBB Zugvorbereiter + an „VT Wali“ (durch Dispo Wien) " ? "#FFFF00" :
+                                                             value === "Daten über ZDE gesendet (durch Dispo CT) " ? "##FFFFFF" :
+                                                             value === "Änderung per Mail an ÖBB Zugvorbereiter + an „VT Wali“ (durch Dispo Wien)" ? "#FFFF00" :
+                                                             value === "Geprüft, OK durch Dispo CT (Retz) " ? "#92D050" :"";
+                    }
+                    if (i === 31) {
+                        event.target.style.backgroundColor = value === "Ja" ? "#00B050" :
+                                                             value === "Nein" ? "#FF0000" :
+                                                             value === "Offen" ? "#FF0000" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "---" ? "#92D050" :"";
+                    }
+                    if (i === 32) {
+                        event.target.style.backgroundColor = value === "Änderung" ? "##FFFF00" :
+                                                             value === "Änderung bestätigt" ? "#92D050" :
+                                                             value === "Bestellt" ? "#FFFF00" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "Faplo DE" ? "#E69138" :
+                                                             value === "Faplo OK" ? "#00B050" :
+                                                             value === "Offen" ? "#FF0000" :
+                                                             value === "PEF Faplo" ? "#00B0F0" :
+                                                             value === "Plantrasse" ? "#F9CB9C" :"";
+                    }
+                });
+            }
+            
+            let actionCell = newRow.insertCell(columnCount - 1);
+            actionCell.style.display = "flex";
+            actionCell.style.justifyContent = "center";
+            
+            let deleteButton = document.createElement("button");
+            deleteButton.textContent = "Löschen";
+            deleteButton.onclick = function() {
+                table.deleteRow(newRow.rowIndex - 1);
+            };
+            actionCell.appendChild(deleteButton);
+        }
+    </script>
+</body>
+</html>
