@@ -96,53 +96,6 @@
         </div>
     </div>
     <script>
-        let db;
-        const request = indexedDB.open("ZuglaufplanDB", 1);
-        request.onupgradeneeded = function(event) {
-            db = event.target.result;
-            if (!db.objectStoreNames.contains("tableData")) {
-                db.createObjectStore("tableData", { keyPath: "id", autoIncrement: true });
-            }
-        };
-        request.onsuccess = function(event) {
-            db = event.target.result;
-            loadTableData();
-        };
-
-        function saveRowData(row) {
-            const transaction = db.transaction("tableData", "readwrite");
-            const store = transaction.objectStore("tableData");
-            const rowData = {
-                id: row.dataset.id || Date.now(),
-                data: Array.from(row.cells).map(cell => cell.textContent)
-            };
-            row.dataset.id = rowData.id;
-            store.put(rowData);
-        }
-
-        function loadTableData() {
-            const transaction = db.transaction("tableData", "readonly");
-            const store = transaction.objectStore("tableData");
-            const request = store.getAll();
-            request.onsuccess = function() {
-                const tableBody = document.getElementById("tableBody");
-                tableBody.innerHTML = "";
-                request.result.forEach(rowData => {
-                    const newRow = insertRow(false);
-                    newRow.dataset.id = rowData.id;
-                    rowData.data.forEach((text, index) => {
-                        newRow.cells[index].textContent = text;
-                    });
-                });
-            };
-        }
-
-        function insertRow(save = true) {
-            var table = document.getElementById("tableBody");
-            var newRow = table.insertRow();
-            newRow.dataset.id = Date.now();
-            const columnCount = 34;
-            
             for (let i = 0; i < columnCount - 1; i++) {
                 let cell = newRow.insertCell(i);
                 cell.contentEditable = "true";
@@ -154,26 +107,131 @@
                     cell.style.backgroundColor = "#E2EFDA";
                 }
                 
+                cell.addEventListener("input", function(event) {
+                    let value = event.target.textContent.trim();
+                    if (i === 1) {
+                        event.target.style.backgroundColor = value === "AT" ? "#00B0F0" : value === "DE" ? "#A9D08E" : "";
+                    }
+                    if (i === 3 && !isNaN(value) && value !== "") {
+                        event.target.style.backgroundColor = "#FFEFF6";
+                    }
+                    if (i === 7 && value.toUpperCase() === "JA") {
+                        event.target.style.backgroundColor = "#FF0000";
+                    }
+                    if (i === 9 && !isNaN(value) && value !== "") {
+                        event.target.style.backgroundColor = "#B7E1CD";
+                    }
+                    if (i === 29) {
+                        event.target.style.backgroundColor = value === "Offen" ? "#FF0000" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "Gesendet" ? "#00B050" :
+                                                             value === "CZ Plan" ? "#FFFFFF" : "" ;
+                    }
+                    if (i === 30) {
+                        event.target.style.backgroundColor = value === "Nein / Offen" ? "#FF0000" :
+                                                             value === "LZ" ? "#9FC5E8" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "CZ Vorm." ? "#FFFFFF" :
+                                                             value === "DE" ? "#9FC5E8" :
+                                                             value === "Änderung gesendet an CT (durch Dispo Wien)" ? "#FFFF00" :
+                                                             value === "Gesendet an CT (durch Dispo Wien)" ? "#FFFF00" :
+                                                             value === "Geprüft, OK durch Dispo Wien " ? "#92D050" :
+                                                             value === "Daten per Mail an ÖBB Zugvorbereiter + an „VT Wali“ (durch Dispo Wien) " ? "#FFFF00" :
+                                                             value === "Daten über ZDE gesendet (durch Dispo CT) " ? "##FFFFFF" :
+                                                             value === "Änderung per Mail an ÖBB Zugvorbereiter + an „VT Wali“ (durch Dispo Wien)" ? "#FFFF00" :
+                                                             value === "Geprüft, OK durch Dispo CT (Retz) " ? "#92D050" :"";
+                    }
+                    if (i === 31) {
+                        event.target.style.backgroundColor = value === "Ja" ? "#00B050" :
+                                                             value === "Nein" ? "#FF0000" :
+                                                             value === "Offen" ? "#FF0000" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "---" ? "#92D050" :"";
+                    }
+                    if (i === 32) {
+                        event.target.style.backgroundColor = value === "Änderung" ? "##FFFF00" :
+                                                             value === "Änderung bestätigt" ? "#92D050" :
+                                                             value === "Bestellt" ? "#FFFF00" :
+                                                             value === "Entwürfe" ? "#FFFF00" :
+                                                             value === "Faplo DE" ? "#E69138" :
+                                                             value === "Faplo OK" ? "#00B050" :
+                                                             value === "Offen" ? "#FF0000" :
+                                                             value === "PEF Faplo" ? "#00B0F0" :
+                                                             value === "Plantrasse" ? "#F9CB9C" :"";
+                    }
+                });
+            }
+            let db;
+        const request = indexedDB.open("ZuglaufplanDB", 1);
+
+        request.onupgradeneeded = function(event) {
+            db = event.target.result;
+            if (!db.objectStoreNames.contains("tableData")) {
+                db.createObjectStore("tableData", { keyPath: "id", autoIncrement: true });
+            }
+        };
+
+        request.onsuccess = function(event) {
+            db = event.target.result;
+            loadTableData();
+        };
+
+        function insertRow() {
+            let table = document.getElementById("tableBody");
+            let newRow = table.insertRow();
+            newRow.dataset.id = Date.now();
+            const columnCount = 34;
+            
+            for (let i = 0; i < columnCount - 1; i++) {
+                let cell = newRow.insertCell(i);
+                cell.contentEditable = "true";
                 cell.addEventListener("input", () => saveRowData(newRow));
             }
-            
-            let actionCell = newRow.insertCell(columnCount - 1);
-            let deleteButton = document.createElement("button");
-            deleteButton.textContent = "Löschen";
-            deleteButton.onclick = function() {
-                deleteRow(newRow);
-            };
-            actionCell.appendChild(deleteButton);
-            
-            if (save) saveRowData(newRow);
-            return newRow;
+
+            addDeleteButton(newRow);
+            saveRowData(newRow);
         }
 
-        function deleteRow(row) {
+        function addDeleteButton(row) {
+            let actionCell = row.insertCell();
+            let deleteButton = document.createElement("button");
+            deleteButton.textContent = "Löschen";
+            deleteButton.onclick = function () {
+                deleteRow(row);
+            };
+            actionCell.appendChild(deleteButton);
+        }
+
+        function saveRowData(row) {
             const transaction = db.transaction("tableData", "readwrite");
             const store = transaction.objectStore("tableData");
-            store.delete(Number(row.dataset.id));
-            row.remove();
+            const rowData = {
+                id: row.dataset.id,
+                data: Array.from(row.cells).map(cell => cell.textContent)
+            };
+            store.put(rowData);
+        }
+
+        function loadTableData() {
+            const transaction = db.transaction("tableData", "readonly");
+            const store = transaction.objectStore("tableData");
+            const request = store.getAll();
+
+            request.onsuccess = function() {
+                const tableBody = document.getElementById("tableBody");
+                tableBody.innerHTML = "";
+                request.result.forEach(rowData => {
+                    const newRow = document.getElementById("tableBody").insertRow();
+                    newRow.dataset.id = rowData.id;
+                    rowData.data.forEach((text, index) => {
+                        let cell = newRow.insertCell(index);
+                        cell.contentEditable = "true";
+                        cell.textContent = text;
+                        cell.addEventListener("input", () => saveRowData(newRow));
+                    });
+                    addDeleteButton(newRow);
+                });
+            };
         }
     </script>
 </body>
