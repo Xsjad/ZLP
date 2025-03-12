@@ -41,87 +41,164 @@
         }
     </style>
 </head>
-<body onload="loadTableData()">
+<body>
     <div class="fixed-header">
         <h2>Zuglaufplan</h2>
         <input type="text" id="searchInput" class="search-input" placeholder="Suchen..." onkeyup="searchTable()">
-        <button onclick="insertRow()" class="add-new-row-btn">Neue Zeile</button>
+        <button onclick="insertRow()">Neue Zeile</button>
     </div>
-    <div class="tab-container"></div>
-    <div id="tab1" class="tab-content">
-        <div class="table-container">
-            <div class="table-header">
-                <table class="fl-table">
-                    <thead>
-                        <tr>
-                            <th>Bezeichnung</th>
-                            <th>Land</th>
-                            <th>ZGG</th>
-                            <th>ZgNr.</th>
-                            <th>Wg</th>
-                            <th>WZL</th>
-                            <th>WZG</th>
-                            <th>RID</th>
-                            <th>GGK</th>
-                            <th>NHM</th>
-                            <th>ETD Dat.</th>
-                            <th>ETD</th>
-                            <th>ATD Dat.</th>
-                            <th>ATD</th>
-                            <th>ETA. Dat.</th>
-                            <th>ETA</th>
-                            <th>ATA Dat.</th>
-                            <th>ATA</th>
-                            <th>von</th>
-                            <th>über</th>
-                            <th>nach</th>
-                            <th>1. Tfz</th>
-                            <th>2. Tfz</th>
-                            <th>ZUG-Tfz</th>
-                            <th>Nachschiebe Tfz</th>
-                            <th>Kalt geschlepptes</th>
-                            <th>TfzF[1]</th>
-                            <th>TfzF[2]</th>
-                            <th>Info zum Zug</th>
-                            <th>Schichtinfo</th>
-                            <th>WALI/Infra.TIS</th>
-                            <th>ZLM</th>
-                            <th>Trassen-status</th>
-                            <th>Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody>
-                </table>
-            </div>
-        </div>
+
+    <div class="table-container">
+        <table class="fl-table">
+            <thead>
+                <tr>
+                    <th>Bezeichnung</th>
+                    <th>Land</th>
+                    <th>ZGG</th>
+                    <th>ZgNr.</th>
+                    <th>Wg</th>
+                    <th>WZL</th>
+                    <th>WZG</th>
+                    <th>RID</th>
+                    <th>GGK</th>
+                    <th>NHM</th>
+                    <th>ETD Dat.</th>
+                    <th>ETD</th>
+                    <th>ATD Dat.</th>
+                    <th>ATD</th>
+                    <th>ETA Dat.</th>
+                    <th>ETA</th>
+                    <th>ATA Dat.</th>
+                    <th>ATA</th>
+                    <th>von</th>
+                    <th>über</th>
+                    <th>nach</th>
+                    <th>1. Tfz</th>
+                    <th>2. Tfz</th>
+                    <th>ZUG-Tfz</th>
+                    <th>Nachschiebe Tfz</th>
+                    <th>Kalt geschlepptes</th>
+                    <th>TfzF[1]</th>
+                    <th>TfzF[2]</th>
+                    <th>Info zum Zug</th>
+                    <th>Schichtinfo</th>
+                    <th>WALI/Infra.TIS</th>
+                    <th>ZLM</th>
+                    <th>Trassen-status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
     </div>
+
     <script>
+        let db;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            initializeDB();
+        });
+
+        function initializeDB() {
+            const request = indexedDB.open("ZuglaufplanDB", 1);
+
+            request.onupgradeneeded = function(event) {
+                db = event.target.result;
+                if (!db.objectStoreNames.contains("tableData")) {
+                    db.createObjectStore("tableData", { keyPath: "id", autoIncrement: true });
+                }
+            };
+
+            request.onsuccess = function(event) {
+                db = event.target.result;
+                loadTableData();
+            };
+        }
+
+        function insertRow() {
+            let table = document.getElementById("tableBody");
+            let newRow = table.insertRow();
+            newRow.dataset.id = Date.now();
+            const columnCount = 34;
+
             for (let i = 0; i < columnCount - 1; i++) {
                 let cell = newRow.insertCell(i);
                 cell.contentEditable = "true";
-                
+                cell.addEventListener("input", () => saveRowData(newRow));
+            }
+
+            addDeleteButton(newRow);
+            saveRowData(newRow);
+        }
+
+        function addDeleteButton(row) {
+            let actionCell = row.insertCell();
+            let deleteButton = document.createElement("button");
+            deleteButton.textContent = "Löschen";
+            deleteButton.onclick = function () {
+                deleteRow(row);
+            };
+            actionCell.appendChild(deleteButton);
+        }
+
+        function saveRowData(row) {
+            const transaction = db.transaction("tableData", "readwrite");
+            const store = transaction.objectStore("tableData");
+            const rowData = {
+                id: Number(row.dataset.id),
+                data: Array.from(row.cells).map(cell => cell.textContent)
+            };
+            store.put(rowData);
+        }
+
+        function loadTableData() {
+            const transaction = db.transaction("tableData", "readonly");
+            const store = transaction.objectStore("tableData");
+            const request = store.getAll();
+
+            request.onsuccess = function() {
+                const tableBody = document.getElementById("tableBody");
+                tableBody.innerHTML = "";
+                request.result.forEach(rowData => {
+                    const newRow = tableBody.insertRow();
+                    newRow.dataset.id = rowData.id;
+
+                    rowData.data.forEach((text, index) => {
+                        let cell = newRow.insertCell(index);
+                        cell.contentEditable = "true";
+                        cell.textContent = text;
+                        cell.addEventListener("input", () => saveRowData(newRow));
+                    });
+
+                    addDeleteButton(newRow);
+                    applyCellColors(newRow);
+                });
+            };
+        }
+
+        function applyCellColors(row) {
+            row.childNodes.forEach((cell, i) => {
+                let value = cell.textContent.trim();
+
                 if ([4, 5, 6, 10, 11, 14, 15].includes(i)) {
                     cell.style.backgroundColor = "#FFF2CC";
                 }
                 if ([12, 13, 16, 17].includes(i)) {
                     cell.style.backgroundColor = "#E2EFDA";
                 }
-                
-                cell.addEventListener("input", function(event) {
-                    let value = event.target.textContent.trim();
-                    if (i === 1) {
-                        event.target.style.backgroundColor = value === "AT" ? "#00B0F0" : value === "DE" ? "#A9D08E" : "";
-                    }
-                    if (i === 3 && !isNaN(value) && value !== "") {
-                        event.target.style.backgroundColor = "#FFEFF6";
-                    }
-                    if (i === 7 && value.toUpperCase() === "JA") {
-                        event.target.style.backgroundColor = "#FF0000";
-                    }
-                    if (i === 9 && !isNaN(value) && value !== "") {
-                        event.target.style.backgroundColor = "#B7E1CD";
-                    }
-                    if (i === 29) {
+                if (i === 1) {
+                    cell.style.backgroundColor = value === "AT" ? "#00B0F0" : value === "DE" ? "#A9D08E" : "";
+                }
+                if (i === 3 && !isNaN(value) && value !== "") {
+                    cell.style.backgroundColor = "#FFEFF6";
+                }
+                if (i === 7 && value.toUpperCase() === "JA") {
+                    cell.style.backgroundColor = "#FF0000";
+                }
+                if (i === 9 && !isNaN(value) && value !== "") {
+                    cell.style.backgroundColor = "#B7E1CD";
+                }
+                                    if (i === 29) {
                         event.target.style.backgroundColor = value === "Offen" ? "#FF0000" :
                                                              value === "Entwürfe" ? "#FFFF00" :
                                                              value === "Gesendet" ? "#00B050" :
@@ -159,79 +236,24 @@
                                                              value === "PEF Faplo" ? "#00B0F0" :
                                                              value === "Plantrasse" ? "#F9CB9C" :"";
                     }
-                });
-            }
-            let db;
-        const request = indexedDB.open("ZuglaufplanDB", 1);
-
-        request.onupgradeneeded = function(event) {
-            db = event.target.result;
-            if (!db.objectStoreNames.contains("tableData")) {
-                db.createObjectStore("tableData", { keyPath: "id", autoIncrement: true });
-            }
-        };
-
-        request.onsuccess = function(event) {
-            db = event.target.result;
-            loadTableData();
-        };
-
-        function insertRow() {
-            let table = document.getElementById("tableBody");
-            let newRow = table.insertRow();
-            newRow.dataset.id = Date.now();
-            const columnCount = 34;
-            
-            for (let i = 0; i < columnCount - 1; i++) {
-                let cell = newRow.insertCell(i);
-                cell.contentEditable = "true";
-                cell.addEventListener("input", () => saveRowData(newRow));
-            }
-
-            addDeleteButton(newRow);
-            saveRowData(newRow);
+            });
         }
 
-        function addDeleteButton(row) {
-            let actionCell = row.insertCell();
-            let deleteButton = document.createElement("button");
-            deleteButton.textContent = "Löschen";
-            deleteButton.onclick = function () {
-                deleteRow(row);
-            };
-            actionCell.appendChild(deleteButton);
-        }
-
-        function saveRowData(row) {
+        function deleteRow(row) {
             const transaction = db.transaction("tableData", "readwrite");
             const store = transaction.objectStore("tableData");
-            const rowData = {
-                id: row.dataset.id,
-                data: Array.from(row.cells).map(cell => cell.textContent)
-            };
-            store.put(rowData);
+            store.delete(Number(row.dataset.id));
+            row.remove();
         }
 
-        function loadTableData() {
-            const transaction = db.transaction("tableData", "readonly");
-            const store = transaction.objectStore("tableData");
-            const request = store.getAll();
+        function searchTable() {
+            let input = document.getElementById("searchInput").value.toLowerCase();
+            let rows = document.querySelectorAll("#tableBody tr");
 
-            request.onsuccess = function() {
-                const tableBody = document.getElementById("tableBody");
-                tableBody.innerHTML = "";
-                request.result.forEach(rowData => {
-                    const newRow = document.getElementById("tableBody").insertRow();
-                    newRow.dataset.id = rowData.id;
-                    rowData.data.forEach((text, index) => {
-                        let cell = newRow.insertCell(index);
-                        cell.contentEditable = "true";
-                        cell.textContent = text;
-                        cell.addEventListener("input", () => saveRowData(newRow));
-                    });
-                    addDeleteButton(newRow);
-                });
-            };
+            rows.forEach(row => {
+                let text = row.textContent.toLowerCase();
+                row.style.display = text.includes(input) ? "" : "none";
+            });
         }
     </script>
 </body>
